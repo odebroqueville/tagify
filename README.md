@@ -36,10 +36,12 @@ Next, we will install the required Python packages:
 
 pip install openai-whisper inflect pymupdf keybert torch 'numpy<2'
 
-Finally, we will need to install ffmpeg and tag using Homebrew:
+Finally, we will need to install ffmpeg and tag (from https://github.com/jdberry/tag) using Homebrew:
 
 brew install ffmpeg tag
 
 We should now be ready to run the script:
 
 python ~/tagigy.py
+
+As a final word, I strongly recommend viewing all your tags with Tagception (from https://madebyevan.com/tagception/). The only thing really missing now id a graph view.
