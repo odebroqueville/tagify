@@ -12,36 +12,36 @@ To use this script, you will need to have Python 3.11 installed along with sever
 
 I recommend first installing miniconda using Homebrew:
 
-brew install --cask miniconda
+`brew install --cask miniconda`
 
 Once miniconda has been installed, you'll need to initialize conda for your zsh shell:
 
-conda init zsh
+`conda init zsh`
 
 This will modify your ~/.zshrc file to set up the conda environment.
 
 You can now either restart your terminal or to apply the changes immediately run:
 
-source ~/.zshrc
+`source ~/.zshrc`
 
 You can now create an environment for Python 3.11 which we will call py311:
 
-conda create -n py311 python=3.11
+`conda create -n py311 python=3.11`
 
 To activate the  environment:
 
-conda activate py311
+`conda activate py311`
 
 Next, we will install the required Python packages:
 
-pip install openai-whisper inflect pymupdf keybert torch 'numpy<2'
+`pip install openai-whisper inflect pymupdf keybert torch 'numpy<2'`
 
 Finally, we will need to install ffmpeg and tag (from https://github.com/jdberry/tag) using Homebrew:
 
-brew install ffmpeg tag
+`brew install ffmpeg tag`
 
 We should now be ready to run the script:
 
-python ~/tagigy.py
+`python ~/tagigy.py`
 
 As a final word, I strongly recommend viewing all your tags with Tagception (from https://madebyevan.com/tagception/). The only thing really missing now id a graph view.
