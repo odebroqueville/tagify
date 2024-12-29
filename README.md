@@ -44,4 +44,4 @@ We should now be ready to run the script:
 
 `python ~/tagigy.py`
 
-As a final word, I strongly recommend viewing all your tags with Tagception (from https://madebyevan.com/tagception/). The only thing really missing now id a graph view.
+As a final word, I strongly recommend viewing all your tags with Tagception (from https://madebyevan.com/tagception/). The only thing really missing now is a graph view.
