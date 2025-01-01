@@ -1,11 +1,10 @@
 import os
+import sys
 import pymupdf
 from keybert import KeyBERT
 import logging
 import subprocess
 import whisper
-import tkinter as tk
-from tkinter import filedialog
 import json
 import inflect
 
@@ -17,12 +16,6 @@ kw_model = KeyBERT()
 
 # Initialize the inflect engine
 p = inflect.engine()
-
-def get_folder():
-    root = tk.Tk()
-    root.withdraw()  # Hide the root window
-    folder_path = filedialog.askdirectory(title="Select Folder Containing PDF Documents")
-    return folder_path
 
 def get_filename_without_extension(video_path):
     """Extract the filename without extension from a video path."""
@@ -308,11 +301,8 @@ def process_folder(folder_path):
                 print(f"Unexpected error processing {file_name}: {str(e)}")
 
 if __name__ == "__main__":
-    # Get folder containing PDFs and/or videos
-    folder = get_folder()
-    if folder:
-        print(f"Selected folder: {folder}")
-        # Process files and update metadata
-        process_folder(folder)
+    if len(sys.argv) > 1:
+        folder_path = sys.argv[1]
+        process_folder(folder_path)
     else:
-        print("No folder selected")
+        print("No folder path provided.")
