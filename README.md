@@ -34,7 +34,7 @@ To activate the  environment:
 
 Next, we will install the required Python packages:
 
-`pip install openai-whisper inflect pymupdf keybert torch 'numpy<2'`
+`pip install openai-whisper inflect pymupdf keybert torch 'numpy<2' pyvis pillow`
 
 Finally, we will need to install ffmpeg and tag (from https://github.com/jdberry/tag) using Homebrew:
 

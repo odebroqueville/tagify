@@ -44,14 +44,14 @@ def create_rounded_button(canvas, text, command, y_position):
 
 def main():
     root = tk.Tk()
-    root.title("Tagify")
+    root.title("Tag Manager")
     root.geometry("600x340")
 
     canvas = tk.Canvas(root, width=600, height=340, bg="white", highlightthickness=0)
     canvas.pack()
 
     # Create buttons
-    button1 = create_rounded_button(canvas, "Select a folder to autotag", lambda: on_button_click("Select a folder to autotag", "tagify.py"), 10)
+    button1 = create_rounded_button(canvas, "Select a folder to autotag", lambda: on_button_click("Select a folder to autotag", "tag.py"), 10)
     button2 = create_rounded_button(canvas, "Sync Finder tags to Metadata", lambda: on_button_click("Sync Finder tags to Metadata", "sync.py"), 120)
     button3 = create_rounded_button(canvas, "Open tags in a graph view", lambda: on_button_click("Open tags in a graph view", "graph.py"), 230)
 

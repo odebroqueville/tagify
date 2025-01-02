@@ -2,7 +2,6 @@ import os
 import sys
 import pymupdf
 from keybert import KeyBERT
-import logging
 import subprocess
 import whisper
 import json
