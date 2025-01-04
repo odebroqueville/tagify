@@ -56,6 +56,6 @@ Finally, we will need to install ffmpeg and tag (from https://github.com/jdberry
 
 We should now be ready to run the app:
 
-`python ~/tagigy.py`
+`python ~/tagigy/main.py`
 
 As a final word, I strongly recommend viewing all your tags with Tagception (from https://madebyevan.com/tagception/).
