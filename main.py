@@ -16,11 +16,7 @@ def on_button_click(label, script, button):
     if not folder_path:
         folder_path = select_folder()
     if folder_path:
-        # Temporarily change the border thickness to 0
-        button.config(image=button.clicked_image)
         subprocess.run(["python", script, folder_path])
-        # Revert the border thickness after the command is executed
-        button.config(image=button.normal_image)
     else:
         messagebox.showwarning("No Folder Selected", "Please select a folder first.")
 
@@ -30,45 +26,78 @@ def on_enter(event):
 def on_leave(event):
     event.widget.config(image=event.widget.normal_image, fg="darkgrey")
 
+# Event handlers
+def on_click(event):
+    button = event.widget
+    # Unbind hover events
+    button.unbind("<Enter>")
+    button.unbind("<Leave>")
+    
+    # Update to clicked state
+    button.config(image=button.clicked_image, fg="darkgrey")
+    
+    # Handle command/script
+    if hasattr(button, 'command') and button.command:
+        button.after(50, button.command)  # Delay command execution
+    elif hasattr(button, 'script'):
+        button.after(50, lambda: on_button_click(button.text, button.script, button))
+    
+    # Reset to normal state after delay
+    button.after(100, lambda: [
+        button.config(image=button.normal_image),
+        button.bind("<Enter>", on_enter),
+        button.bind("<Leave>", on_leave)
+    ])
+
 def create_rounded_button(canvas, text, script, y_position, command=None):
     width, height = 580, 100  # Adjust width to account for margins
     radius = 30
 
-    # Create an image with rounded corners for normal state
-    normal_image = Image.new("RGBA", (width, height), (255, 255, 255, 0))  # Transparent background
+        # Create images with transparent background (RGBA)
+    normal_image = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    hover_image = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    clicked_image = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+
+    # Draw rounded rectangles for each state
     draw = ImageDraw.Draw(normal_image)
-    draw.rounded_rectangle((0, 0, width, height), radius, fill="lightgrey", outline="darkgrey", width=2)
+    draw.rounded_rectangle((0, 0, width, height), radius, fill="lightgrey", outline=None)
 
-    # Create an image with rounded corners for hover state
-    hover_image = Image.new("RGBA", (width, height), (255, 255, 255, 0))  # Transparent background
     draw = ImageDraw.Draw(hover_image)
-    draw.rounded_rectangle((0, 0, width, height), radius, fill="darkgrey", outline="darkgrey", width=2)
+    draw.rounded_rectangle((0, 0, width, height), radius, fill="darkgrey", outline=None)
 
-    # Create an image with rounded corners for clicked state (border thickness 0)
-    clicked_image = Image.new("RGBA", (width, height), (255, 255, 255, 0))  # Transparent background
     draw = ImageDraw.Draw(clicked_image)
-    draw.rounded_rectangle((0, 0, width, height), radius, fill="lightgrey", outline="darkgrey", width=0)
+    draw.rounded_rectangle((0, 0, width, height), radius, fill="yellow", outline=None)
 
-    # Convert the images to PhotoImage
+    # Convert to PhotoImage
     normal_photo_image = ImageTk.PhotoImage(normal_image)
     hover_photo_image = ImageTk.PhotoImage(hover_image)
     clicked_photo_image = ImageTk.PhotoImage(clicked_image)
 
-    # Create a label with the normal image
-    button = tk.Label(canvas, image=normal_photo_image, text=text, compound="center", font=("Helvetica", 24, "bold"), fg="darkgrey", bg="white")
-    button.normal_image = normal_photo_image  # Keep a reference to avoid garbage collection
-    button.hover_image = hover_photo_image  # Keep a reference to avoid garbage collection
-    button.clicked_image = clicked_photo_image  # Keep a reference to avoid garbage collection
+    # Create button with transparent background
+    button = tk.Label(
+        canvas,
+        image=normal_photo_image,
+        text=text,
+        compound="center",
+        font=("Helvetica", 24, "bold"),
+        fg="darkgrey",
+        bg="white"
+    )
+
+    # Store references and attributes
+    button.normal_image = normal_photo_image
+    button.hover_image = hover_photo_image
+    button.clicked_image = clicked_photo_image
+    button.command = command
+    button.text = text
+    button.script = script
 
     # Bind the hover events
     button.bind("<Enter>", on_enter)
     button.bind("<Leave>", on_leave)
 
     # Bind the click event
-    if command:
-        button.bind("<Button-1>", lambda event: command())
-    else:
-        button.bind("<Button-1>", lambda event: on_button_click(text, script, button))
+    button.bind("<Button-1>", on_click)
 
     # Place the button on the canvas
     button.place(x=10, y=y_position, width=580, height=100)  # Adjust x position to account for left margin

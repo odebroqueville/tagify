@@ -24,7 +24,7 @@ def get_finder_tags(file_path):
         return []
     tags_str = result.stdout.replace(file_path,"").strip()
     # Split the tags_str based on the first occurrence of multiple spaces
-    tags = tags_str.split(", ") if tags_str else []
+    tags = [tag.strip() for tag in tags_str.split(",")] if tags_str else []
     if len(tags) > 0:
         print(f"Retrieved Finder tags for {file_path}: {', '.join(tags)}")
     else:
@@ -68,12 +68,16 @@ def sync_tags(folder_path):
     """Recursively visit every file and sub-folder in the folder_path and sync Finder tags to metadata."""
     for root, dirs, files in os.walk(folder_path):
         for file_name in files:
+            file_path = os.path.join(root, file_name)
+            
+            # Check if it's actually a file
+            if not os.path.isfile(file_path):
+                continue
+            
             # Skip hidden files and non-supported files
             if file_name.startswith("._") or not file_name.endswith((".pdf", ".txt", ".mp4", ".mkv", ".webm")):
                 continue
             
-            # Sync Finder tags to metadata
-            file_path = os.path.join(root, file_name)
             tags = get_finder_tags(file_path)
             if len(tags) > 0:
                 if file_name.endswith(".pdf"):

@@ -146,7 +146,7 @@ def get_finder_tags(file_path):
         return []
     tags_str = result.stdout.replace(file_path,"").strip()
     # Split the tags_str based on the first occurrence of multiple spaces
-    tags = tags_str.split(", ") if tags_str else []
+    tags = [tag.strip() for tag in tags_str.split(",")] if tags_str else []
     if len(tags) > 0:
         print(f"Retrieved Finder tags for {file_path}: {', '.join(tags)}")
     else:

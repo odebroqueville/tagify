@@ -7,35 +7,40 @@ from tkinter import Tk, filedialog
 def get_tags(file_path):
     """Get tags for a file using the tag command line tool."""
     tag_cmd = ["tag", "--list", file_path]
-    print(f"Running command: {' '.join(tag_cmd)}")  # Debugging print statement
     result = subprocess.run(tag_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     if result.returncode != 0:
         print(f"Failed to get tags for {file_path}: {result.stderr}")
         return []
-    tags_str = result.stdout.strip()
-    print(f"Command output: {tags_str}")  # Debugging print statement
-    tags_lines = tags_str.split("\t")
-    if len(tags_lines) > 1:
-        tags = tags_lines[1].split(",")
-        return [tag.strip() for tag in tags]
-    return []
+    tags_str = result.stdout.replace(file_path,"").strip()
+    # Split the tags_str based on the first occurrence of multiple spaces
+    tags = [tag.strip() for tag in tags_str.split(",")] if tags_str else []
+    if len(tags) > 0:
+        print(f"Retrieved Finder tags for {file_path}: {', '.join(tags)}")
+    else:
+        print(f"No Finder tags found for {file_path}")
+    return tags
 
 def build_files_tags(folder_path):
     """Build the files_tags dictionary by recursively visiting all files and sub-folders."""
     files_tags = {}
     for root, dirs, files in os.walk(folder_path):
         for file_name in files:
-            print(f"Processing file: {file_name}")  # Debugging print statement
-            if file_name.endswith(("_tagged.pdf", "_tagged.txt", "_tagged.mp4", "_tagged.mkv", "_tagged.webm")):
-                file_path = os.path.join(root, file_name)
-                tags = get_tags(file_path)
-                if tags:
-                    files_tags[file_name] = tags
-                    print(f"Added tags for {file_name}: {tags}")  # Debugging print statement
-                else:
-                    print(f"No tags found for {file_name}")  # Debugging print statement
+            file_path = os.path.join(root, file_name)
+            
+            # Check if it's actually a file
+            if not os.path.isfile(file_path):
+                continue
+            
+            # Skip hidden files and non-supported files
+            if file_name.startswith("._") or not file_name.endswith((".pdf", ".txt", ".mp4", ".mkv", ".webm")):
+                continue
+            
+            tags = get_tags(file_path)
+            if len(tags) > 0:
+                files_tags[file_name] = tags
+                print(f"Added tags for {file_name}: {tags}")  # Debugging print statement
             else:
-                print(f"Skipped file: {file_name}")  # Debugging print statement
+                print(f"No tags found for {file_name}")  # Debugging print statement
     return files_tags
 
 if __name__ == "__main__":
@@ -61,11 +66,11 @@ if __name__ == "__main__":
     # Add nodes and edges
     for file, tags in files_tags.items():
         # Add file node (shape: rectangle)
-        net.add_node(file, label=file, color="blue", shape="rectangle")
+        net.add_node(file, label=file, color="blue", shape="box", node_type = "file")
         for tag in tags:
             # Add tag node (shape: ellipse, if not already added)
             if tag not in net.node_map:
-                net.add_node(tag, label=tag, color="green", shape="ellipse")
+                net.add_node(tag, label=tag, color="green", shape="ellipse", node_type = "tag")
             # Add edge between file and tag
             net.add_edge(file, tag)
 
@@ -79,6 +84,7 @@ if __name__ == "__main__":
 
     custom_js = """
     <script type="text/javascript">
+
     function highlightConnectedNodes(params) {
         if (params.nodes.length > 0) {
             var selectedNode = params.nodes[0];
@@ -93,7 +99,7 @@ if __name__ == "__main__":
                 if (allNodes.hasOwnProperty(nodeId)) {
                     var node = allNodes[nodeId];
                     if (nodeId == selectedNode || connectedNodes.includes(nodeId) || secondLevelNodes.includes(nodeId)) {
-                        node.setOptions({color: 'red'});
+                        node.setOptions({color: 'orange'});
                     } else {
                         node.setOptions({color: 'grey'});
                     }
@@ -101,7 +107,30 @@ if __name__ == "__main__":
             }
         }
     }
-    network.on('click', highlightConnectedNodes);
+
+    function unhighlightConnectedNodes() {
+        var allNodes = network.body.nodes;
+        for (var nodeId in allNodes) {
+            if (allNodes.hasOwnProperty(nodeId)) {
+                var node = allNodes[nodeId];
+                if (node.options.node_type === "file") {
+                    node.setOptions({color: "blue"});
+                } else if (node.options.node_type === "tag") {
+                    node.setOptions({color: "green"});
+                }
+            }
+        }
+    }
+    
+    network.on('click', function(params) {
+        if (params.nodes.length === 0) {
+            unhighlightConnectedNodes();
+        } else {
+            highlightConnectedNodes(params);
+        }
+    });
+    
+    // Store the original colors of all nodes after the graph is created
     </script>
     """
 
