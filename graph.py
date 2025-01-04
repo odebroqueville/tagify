@@ -117,5 +117,7 @@ if __name__ == "__main__":
         # Use os.system to open the file with the default application
         os.system("open tags_graph.html")
         print("Opened tags_graph.html in web browser")
+        sys.exit(0) # Exit with status code 0 indicating success
     except Exception as e:
         print(f"Failed to open tags_graph.html in web browser: {e}")
+        sys.exit(1)  # Exit with status code 1 indicating an error

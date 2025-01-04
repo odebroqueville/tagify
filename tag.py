@@ -102,17 +102,22 @@ def transcribe_audio_with_language_detection(audio_path):
     return output_json_path
 
 def generate_tags(text, model, top_n=5):
-    """Generate tags using KeyBERT."""
-    keywords = model.extract_keywords(text, top_n=top_n)
-    return [kw[0] for kw in keywords]
+    """Generate tags using KeyBERT and convert them to singular form."""
+    keywords = model.extract_keywords(text, top_n=top_n * 2)  # Extract more keywords to ensure we get enough unique singular keywords
+    singular_keywords = []
+    index = 0
 
-def filter_singular_tags(tags):
-    """Filter out tags that are in plural form."""
-    return [tag for tag in tags if not p.singular_noun(tag)]
+    while len(singular_keywords) < top_n and index < len(keywords):
+        kw = keywords[index][0]
+        singular_kw = p.singular_noun(kw) or kw
+        if singular_kw not in singular_keywords:
+            singular_keywords.append(singular_kw)
+        index += 1
+
+    return singular_keywords
 
 def add_tags_to_pdf_metadata(pdf_path, tags):
     """Add generated tags to the metadata of the PDF."""
-    tags = filter_singular_tags(tags)
     doc = pymupdf.open(pdf_path)
     metadata = doc.metadata
 
@@ -121,30 +126,16 @@ def add_tags_to_pdf_metadata(pdf_path, tags):
     doc.set_metadata(metadata)
 
     # Save the updated PDF
-    output_path = pdf_path.replace(".pdf", "_tagged.pdf")
-    doc.save(output_path)
+    doc.save(pdf_path)
     doc.close()
-    return output_path
 
 def add_tags_to_video_metadata(video_path, tags):
-    """Add generated tags to the metadata of the video."""
-    tags = filter_singular_tags(tags)
-    output_path = video_path.replace(".mp4", "_tagged.mp4").replace(".mkv", "_tagged.mkv").replace(".webm", "_tagged.webm")
-    
-    # Check if the tagged file already exists
-    if os.path.exists(output_path):
-        overwrite = input(f"File '{output_path}' already exists. Overwrite? [y/N] ").strip().lower()
-        if overwrite != 'y':
-            print("Not overwriting - skipping")
-            return None
-
+    """Add generated tags to the metadata of the video."""    
     tags_str = ", ".join(tags)
     ffmpeg_cmd = [
-        "ffmpeg", "-i", video_path, "-metadata", f"comment={tags_str}", "-c", "copy", output_path
+        "ffmpeg", "-loglevel", "quiet", "-y", "-i", video_path, "-metadata", f"comment={tags_str}", "-c", "copy", video_path
     ]
     subprocess.run(ffmpeg_cmd)
-    print(f"Tagged video saved at: {output_path}")
-    return output_path
 
 def get_finder_tags(file_path):
     """Get Finder tags using the tag command line tool."""
@@ -153,22 +144,17 @@ def get_finder_tags(file_path):
     if result.returncode != 0:
         print(f"Failed to get Finder tags for {file_path}: {result.stderr}")
         return []
-    tags_str = result.stdout.strip()
-    # Split the output by newlines and take the second line as the tags
-    tags_lines = tags_str.split("\n")
-    if len(tags_lines) > 1:
-        tags = tags_lines[1].split(", ")
-        tags = filter_singular_tags(tags)
+    tags_str = result.stdout.replace(file_path,"").strip()
+    # Split the tags_str based on the first occurrence of multiple spaces
+    tags = tags_str.split(", ") if tags_str else []
+    if len(tags) > 0:
         print(f"Retrieved Finder tags for {file_path}: {', '.join(tags)}")
     else:
-        tags = []
         print(f"No Finder tags found for {file_path}")
-    print("----------------")
     return tags
 
 def set_finder_tags(file_path, tags):
     """Set Finder tags using the tag command line tool."""
-    tags = filter_singular_tags(tags)
     tags_str = ",".join(tags)
     tag_cmd = ["tag", "--set", tags_str, file_path]
     result = subprocess.run(tag_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
@@ -184,19 +170,20 @@ def process_folder(folder_path):
             # Initialize the tagged flag
             tagged = False
             
-            # If the file is already tagged, then set the flag tagged to True
-            if file_name.endswith("_tagged.pdf") or file_name.endswith("_tagged.mp4") or file_name.endswith("_tagged.mkv") or file_name.endswith("_tagged.webm"):
-                tagged = True
-            
-            # Skip hidden files and non-supported files
-            if file_name.startswith("._") or not file_name.endswith((".pdf", ".txt", ".mp4", ".mkv", ".webm")):
-                continue
-
             file_path = os.path.join(root, file_name)
             
             # Check if it's actually a file
             if not os.path.isfile(file_path):
                 continue
+            
+            # Skip hidden files and non-supported files
+            if file_name.startswith("._") or not file_name.endswith((".pdf", ".txt", ".mp4", ".mkv", ".webm")):
+                continue
+            
+            # If the file is already tagged, then set the flag tagged to True
+            finder_tags = get_finder_tags(file_path)
+            if len(finder_tags) > 0:
+                tagged = True
             
             try:
                 tags = []
@@ -210,23 +197,15 @@ def process_folder(folder_path):
                         print(f"Tags for {file_name}: {tags}")
 
                         # Add tags to the PDF metadata
-                        updated_pdf_path = add_tags_to_pdf_metadata(file_path, tags)
-                        print(f"Tagged PDF saved at: {updated_pdf_path}")
+                        add_tags_to_pdf_metadata(file_path, tags)
+                        print(f"Tagged PDF saved at: {file_path}")
                     else:
-                        updated_pdf_path = file_path
                         # Read tags from the PDF metadata
                         doc = pymupdf.open(file_path)
                         metadata = doc.metadata
                         tags_str = metadata.get("keywords", "")
                         tags = tags_str.split(", ") if tags_str else []
                         doc.close()
-                    
-                    # Check if Finder tags are already set
-                    finder_tags = get_finder_tags(updated_pdf_path)
-                    if not finder_tags:
-                        # Set Finder tags
-                        set_finder_tags(updated_pdf_path, tags)
-
                 elif file_name.endswith(".txt"):
                     if not tagged:
                         # Extract text from the text file
@@ -248,13 +227,6 @@ def process_folder(folder_path):
                         with open(metadata_path, 'r') as metadata_file:
                             metadata = json.load(metadata_file)
                             tags = metadata.get("tags", [])
-                    
-                    # Check if Finder tags are already set
-                    finder_tags = get_finder_tags(file_path)
-                    if not finder_tags:
-                        # Set Finder tags
-                        set_finder_tags(file_path, tags)
-
                 elif file_name.endswith((".mp4", ".mkv", ".webm")):
                     if not tagged:
                         # Extract audio
@@ -268,19 +240,17 @@ def process_folder(folder_path):
                             transcription_data = json.load(json_file)
                             language = transcription_data["language"]
                             transcript = transcription_data["transcript"]
-                        print(f"Transcription ({language}): {transcript}")
+                            sentences = transcript.split(".")
+                            first_sentence = sentences[0]
+                        print(f"Transcription ({language}): {first_sentence}...")
 
                         # Generate tags
                         tags = generate_tags(transcript, kw_model)
                         print(f"Tags for {file_name}: {tags}")
 
                         # Add tags to the video metadata
-                        updated_video_path = add_tags_to_video_metadata(file_path, tags)
-                        if updated_video_path is None:
-                            continue  # Skip setting Finder tags if not overwriting
-                        print(f"Tagged video saved at: {updated_video_path}")
+                        add_tags_to_video_metadata(file_path, tags)
                     else:
-                        updated_video_path = file_path
                         # Read tags from the video metadata
                         tags_str = subprocess.run(
                             ["ffprobe", "-v", "error", "-show_entries", "format=tags:stream=tags", "-of", "default=noprint_wrappers=1:nokey=1", file_path],
@@ -288,12 +258,11 @@ def process_folder(folder_path):
                         ).stdout.strip()
                         tags = tags_str.split(", ") if tags_str else []
                     
-                    # Check if Finder tags are already set
-                    finder_tags = get_finder_tags(updated_video_path)
-                    if not finder_tags:
-                        # Set Finder tags
-                        set_finder_tags(updated_video_path, tags)
-
+                # Set Finder tags (Finder tags will be overwritten with metadata tags)
+                if len(tags) > 0:
+                    set_finder_tags(file_path, tags)
+                
+                print("----------------")
             except pymupdf.FileDataError as e:
                 print(f"Error processing PDF {file_name}: {str(e)}")
             except Exception as e:
@@ -303,5 +272,7 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         folder_path = sys.argv[1]
         process_folder(folder_path)
+        sys.exit(0) # Exit with status code 0 indicating success
     else:
         print("No folder path provided.")
+        sys.exit(1)  # Exit with status code 1 indicating an error
