@@ -1,20 +1,28 @@
 import os
 import sys
 import pymupdf
-from keybert import KeyBERT
 import subprocess
 import whisper
 import json
 import inflect
+from ollama import generate  # Import the Ollama library
 
 # Set the environment variable to disable parallelism for tokenizers
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
-# Initialize KeyBERT
-kw_model = KeyBERT()
-
 # Initialize the inflect engine
 p = inflect.engine()
+
+# Initialize the Ollama model
+ollama_model = "tinydolphin"  # Replace "your_model_name" with the actual model name
+
+def extract_tags(text, model, max_tags=10):
+    """Extract tags from text using Ollama."""
+    prompt = f"Provide a set of {max_tags} relevant individual keywords or tags that best characterize the following text. Do not extract any sentence from the text and do not build any sentences. Only output the keywords or tags separated by commas in a single string.\n\nText:  {text}"
+    response = generate(model=model, prompt=prompt)
+    print(f"Ollama response: {response.response}")
+    tags = response.response.split(",")[:max_tags]
+    return [tag.strip() for tag in tags]
 
 def get_filename_without_extension(video_path):
     """Extract the filename without extension from a video path."""
@@ -102,13 +110,13 @@ def transcribe_audio_with_language_detection(audio_path):
     return output_json_path
 
 def generate_tags(text, model, top_n=5):
-    """Generate tags using KeyBERT and convert them to singular form."""
-    keywords = model.extract_keywords(text, top_n=top_n * 2)  # Extract more keywords to ensure we get enough unique singular keywords
+    """Generate tags using Ollama and convert them to singular form."""
+    tags = extract_tags(text, model, top_n * 2)
     singular_keywords = []
     index = 0
 
-    while len(singular_keywords) < top_n and index < len(keywords):
-        kw = keywords[index][0]
+    while len(singular_keywords) < top_n and index < len(tags):
+        kw = tags[index]
         singular_kw = p.singular_noun(kw) or kw
         if singular_kw not in singular_keywords:
             singular_keywords.append(singular_kw)
@@ -193,7 +201,7 @@ def process_folder(folder_path):
                         text = extract_text_from_pdf(file_path)
 
                         # Generate tags
-                        tags = generate_tags(text, kw_model)
+                        tags = generate_tags(text, ollama_model)
                         print(f"Tags for {file_name}: {tags}")
 
                         # Add tags to the PDF metadata
@@ -213,7 +221,7 @@ def process_folder(folder_path):
                             text = file.read()
 
                         # Generate tags
-                        tags = generate_tags(text, kw_model)
+                        tags = generate_tags(text, ollama_model)
                         print(f"Tags for {file_name}: {tags}")
 
                         # Save tags in a separate metadata file
@@ -245,7 +253,7 @@ def process_folder(folder_path):
                         print(f"Transcription ({language}): {first_sentence}...")
 
                         # Generate tags
-                        tags = generate_tags(transcript, kw_model)
+                        tags = generate_tags(transcript, ollama_model)
                         print(f"Tags for {file_name}: {tags}")
 
                         # Add tags to the video metadata
@@ -267,6 +275,7 @@ def process_folder(folder_path):
                 print(f"Error processing PDF {file_name}: {str(e)}")
             except Exception as e:
                 print(f"Unexpected error processing {file_name}: {str(e)}")
+    print("Processing complete.")
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
