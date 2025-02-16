@@ -43,7 +43,7 @@ def extract_audio_with_original_format(video_path, output_dir):
     
     # Map codec to file extension
     codec_to_extension = {
-        "aac": "aac",
+        "aac": "m4a",  # Use m4a for AAC audio
         "mp3": "mp3",
         "vorbis": "ogg",
         "opus": "opus",
@@ -66,7 +66,7 @@ def extract_audio_with_original_format(video_path, output_dir):
 
     # Extract audio if it doesn't already exist
     ffmpeg_cmd = [
-        "ffmpeg", "-i", video_path, "-vn", "-acodec", "copy", "-f", file_extension, audio_output_path
+        "ffmpeg", "-i", video_path, "-vn", "-acodec", "copy", audio_output_path
     ]
     subprocess.run(ffmpeg_cmd)
     return audio_output_path
