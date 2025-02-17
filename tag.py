@@ -2,6 +2,7 @@ import os
 import sys
 import pymupdf
 from keybert import KeyBERT
+import re
 import subprocess
 import whisper
 import json
@@ -15,6 +16,22 @@ kw_model = KeyBERT()
 
 # Initialize the inflect engine
 p = inflect.engine()
+
+def extract_chapter_titles(video_file):
+    cmd = ["ffprobe", "-i", video_file, "-show_chapters", "-loglevel", "error"]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    
+    if result.returncode != 0:
+        print(f"Failed to extract chapter titles from {video_file}")
+        print(result.stderr)
+        return []
+
+    # print(result.stdout)
+
+    # Regular expression to match chapter titles
+    titles = re.findall(r'TAG:title=(.+)', result.stdout)
+
+    return titles
 
 def get_filename_without_extension(video_path):
     """Extract the filename without extension from a video path."""
@@ -229,6 +246,17 @@ def process_folder(folder_path):
                             tags = metadata.get("tags", [])
                 elif file_name.endswith((".mp4", ".mkv", ".webm")):
                     if not tagged:
+                        #Strip the file extension
+                        file_name = os.path.splitext(file_name)[0]
+                        text = f"{file_name}\n\n"
+                        
+                        # Extract chapter titles
+                        print(f"Chapter titles for {file_name}:\n\n")
+                        chapter_titles = extract_chapter_titles(file_path)
+                        for i, title in enumerate(chapter_titles, start=1):
+                            text += f"{i}. {title}\n"
+                            print(f"{i}. {title}\n")
+                        
                         # Extract audio
                         audio_path = extract_audio_with_original_format(file_path, root)
                         print(f"Audio extracted from {file_name} to {audio_path}")
@@ -243,9 +271,10 @@ def process_folder(folder_path):
                             sentences = transcript.split(".")
                             first_sentence = sentences[0]
                         print(f"Transcription ({language}): {first_sentence}...")
-
+                        text += transcript
+                        
                         # Generate tags
-                        tags = generate_tags(transcript, kw_model)
+                        tags = generate_tags(text, kw_model)
                         print(f"Tags for {file_name}: {tags}")
 
                         # Add tags to the video metadata
@@ -267,6 +296,7 @@ def process_folder(folder_path):
                 print(f"Error processing PDF {file_name}: {str(e)}")
             except Exception as e:
                 print(f"Unexpected error processing {file_name}: {str(e)}")
+    print("Tagging completed.")
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
